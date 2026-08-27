@@ -1,4 +1,7 @@
-"""Tests for secrethunter.detector. All test data below is synthetic/fake."""
+"""Tests for secrethunter.detector.
+
+All test data below is synthetic/fake — these are not real credentials.
+"""
 
 from secrethunter.detector import Severity, scan_history, shannon_entropy
 
@@ -48,6 +51,9 @@ def test_low_entropy_string_not_flagged():
 
 
 def test_entropy_check_scoped_to_secret_bearing_commands():
+    # A long random-looking string on a line that isn't export/set/curl/clone
+    # shouldn't be flagged — reduces false positives on e.g. long file hashes
+    # printed by other commands.
     lines = ["echo aB3xQ9zM2pR7wK1vN8yT4uL6hJ0dF5gC"]
     findings = scan_history(lines)
     assert findings == []
@@ -59,3 +65,9 @@ def test_shannon_entropy_of_repeated_char_is_zero():
 
 def test_shannon_entropy_of_random_string_is_high():
     assert shannon_entropy("aB3xQ9zM2pR7wK1vN8yT") > 3.5
+
+
+def test_ignore_marker_suppresses_finding():
+    lines = ["export AWS_ACCESS_KEY_ID=AKIAABCDEFGHIJKLMNOP  # secret-hunter-ignore"]
+    findings = scan_history(lines)
+    assert findings == []
