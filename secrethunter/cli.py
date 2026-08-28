@@ -1,16 +1,22 @@
 """Command-line interface for scanning shell history for leaked secrets."""
 
 import argparse
+import asyncio
 import json
+import logging
 import sys
+import time
 from pathlib import Path
 
+import aiofiles
 from pydantic import ValidationError
 
 from secrethunter.detector import Finding, scan_history
 from secrethunter.models import ScanTarget
 
 DEFAULT_HISTORY_FILES = ("~/.bash_history", "~/.zsh_history")
+
+logger = logging.getLogger("secrethunter")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -28,6 +34,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--json",
         action="store_true",
         help="Output findings as JSON instead of human-readable text",
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Show detailed progress logging",
     )
     return parser
 
@@ -72,18 +83,41 @@ def build_text_report(findings_by_file: dict[str, list[Finding]]) -> str:
     return "\n".join(report_lines).rstrip()
 
 
-def scan_targets(targets: list[ScanTarget]) -> dict[str, list[Finding]]:
-    """Scan each validated target file and return findings keyed by path."""
-    results = {}
-    for target in targets:
-        lines = target.path.read_text(errors="ignore").splitlines()
-        results[str(target.path)] = scan_history(lines)
-    return results
+async def scan_target_async(target: ScanTarget) -> tuple[str, list[Finding]]:
+    """Read one file asynchronously and scan it (CPU work stays synchronous)."""
+    logger.debug("Reading %s", target.path)
+    start = time.monotonic()
+
+    async with aiofiles.open(target.path, mode="r", errors="ignore") as f:
+        content = await f.read()
+
+    lines = content.splitlines()
+    findings = scan_history(lines)
+
+    elapsed = time.monotonic() - start
+    logger.debug(
+        "Scanned %s: %d lines, %d finding(s), %.3fs", target.path, len(lines), len(findings), elapsed
+    )
+    return str(target.path), findings
+
+
+async def scan_targets(targets: list[ScanTarget]) -> dict[str, list[Finding]]:
+    """Scan all target files concurrently and return findings keyed by path."""
+    logger.info("Starting scan of %d file(s)", len(targets))
+    results = await asyncio.gather(*(scan_target_async(t) for t in targets))
+    logger.info("Scan complete")
+    return dict(results)
 
 
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.WARNING,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
+    )
 
     try:
         if args.paths:
@@ -92,10 +126,10 @@ def main() -> None:
             paths = resolve_default_paths()
         targets = [ScanTarget(path=p) for p in paths]
     except (ValidationError, FileNotFoundError) as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error("%s", e)
         sys.exit(1)
 
-    findings_by_file = scan_targets(targets)
+    findings_by_file = asyncio.run(scan_targets(targets))
 
     if args.json:
         print(findings_to_json(findings_by_file))

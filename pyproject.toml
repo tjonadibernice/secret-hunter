@@ -2,7 +2,10 @@
 name = "secret-hunter"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["pydantic>=2.0"]
+dependencies = [
+    "pydantic>=2.0",
+    "aiofiles>=24.0",
+]
 
 [project.scripts]
 secret-hunter = "secrethunter.cli:main"
