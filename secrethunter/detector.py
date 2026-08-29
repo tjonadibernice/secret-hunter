@@ -73,7 +73,7 @@ def find_high_entropy_tokens(line: str) -> list[Finding]:
 
     findings = []
     # Look at tokens that appear after an '=' (e.g. API_KEY=abc123...)
-    for match in re.finditer(r"=([A-Za-z0-9+/_-]{%d,})" % MIN_ENTROPY_LENGTH, line):
+    for match in re.finditer(rf"=([A-Za-z0-9+/_-]{{{MIN_ENTROPY_LENGTH},}})", line):
         token = match.group(1)
         entropy = shannon_entropy(token)
         if entropy >= ENTROPY_THRESHOLD:

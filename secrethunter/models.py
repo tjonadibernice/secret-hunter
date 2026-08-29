@@ -1,6 +1,7 @@
 """Pydantic model for validating the CLI's input file."""
 
 from pathlib import Path
+
 from pydantic import BaseModel, field_validator
 
 
