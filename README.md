@@ -74,3 +74,4 @@ Python, [pydantic](https://docs.pydantic.dev/) for input validation, [pytest](ht
 - Regex-based detection has known false-negative risk for secret formats not in `KNOWN_PATTERNS`
 - Entropy-based detection can produce false positives on legitimately random values (e.g. UUIDs, hashes) assigned via a matched command prefix
 - Does not modify or redact your history file — read-only reporting tool
+test
