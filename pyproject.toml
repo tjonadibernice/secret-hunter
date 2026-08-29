@@ -11,7 +11,7 @@ dependencies = [
 secret-hunter = "secrethunter.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.11", "types-aiofiles"]
 
 [build-system]
 requires = ["setuptools>=68"]
